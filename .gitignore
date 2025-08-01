@@ -1,0 +1,10 @@
+bminor
+*.o
+bison.h
+flex.h
+parser.output
+parser.c
+scanner.c
+.cache
+.externalToolBuilders
+.settings
