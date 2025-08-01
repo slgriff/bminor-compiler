@@ -17,7 +17,7 @@ main.o : main.c flex.h bison.h
 parser.c bison.h &: parser.y
 	bison -Wall --debug --header=bison.h --output=parser.c $<
 
-scanner.c flex.h &: scanner.flex
+scanner.c flex.h &: scanner.l
 	flex --debug --outfile=scanner.c --header-file=flex.h $<
 
 clean :
