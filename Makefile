@@ -5,7 +5,7 @@ CFLAGS=-g3 -Wall
 
 all : bminor
 
-bminor : main.o parser.o scanner.o decl.o stmt.o expr.o param_list.o type.o print.o
+bminor : main.o parser.o scanner.o decl.o stmt.o expr.o param_list.o type.o print.o hash_table.o symbol.o scope.o
 	${CC} ${CFLAGS} -o $@ $^
 
 main.o : main.c flex.h bison.h

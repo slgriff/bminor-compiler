@@ -1,10 +1,14 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "bison.h"
 #include "decl.h"
 #include "flex.h"
+#include "scope.h"
+#include "hash_table.h"
 
-extern struct decl *parser_result;
+extern struct decl *ast_root;
+extern struct hash_table *function_definition;
 
 void print_token(const int t) {
 	if (t == CHAR_LITERAL) {
@@ -114,6 +118,11 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
+	if (argc > 3) {
+		fprintf(stderr, "run error: too many arguments\n");
+		return EXIT_FAILURE;
+	}
+
 	const char *filename = argv[2];
 
 	yyin = fopen(filename, "r");
@@ -134,20 +143,35 @@ int main(int argc, char **argv) {
 		} else {
 			yydebug = 1;
 
-			if (yyparse() != 0) {
-				fprintf(stderr, "parse failed\n");
-				fclose(yyin);
+			int parse_result = yyparse();
+			fclose(yyin);
+
+			if (parse_result != 0) {
+				fprintf(stderr, "parse failed\n");	
 				return EXIT_FAILURE;
 			}
 
 			if (strcmp(command, "-parse") == 0) {
 				printf("parse successful\n");
 			} else if (strcmp(command, "-print") == 0) {
-				decl_print(parser_result, 0);
+				decl_print(ast_root, 0);
+			} else {
+				function_definition = hash_table_create(0, 0);
+
+				scope_enter();
+				decl_resolve(ast_root);
+				scope_exit();
+				
+				hash_table_delete(function_definition);
+				function_definition = NULL;
+
+				if (resolve_error) {
+					exit(EXIT_FAILURE);
+				}
 			}
 		}
 		
-		fclose(yyin);
+
 	} else {
 		fprintf(stderr, "run error: unable to open %s\n", filename);
 		return EXIT_FAILURE;

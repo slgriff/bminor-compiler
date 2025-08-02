@@ -57,4 +57,6 @@ struct expr * expr_create_string_literal(const char *str);
 
 void expr_print(struct expr *expr);
 
+void expr_resolve(struct expr *expr);
+
 #endif

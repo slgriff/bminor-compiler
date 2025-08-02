@@ -10,7 +10,7 @@
 
 void yyerror(const char *msg);
 
-struct decl *parser_result = NULL;
+struct decl *ast_root = NULL;
 %}
 
 %verbose
@@ -82,7 +82,7 @@ struct decl *parser_result = NULL;
 %printer { fprintf(yyo, "%c", $$); } CHAR_LITERAL
 
 %type <decl> program decl_list decl function_decl variable_decl array_decl
-%type <expr> expr return_val arg_list arg name assignment_expr atomic_expr lvalue logical_or_expr logical_and_expr deref_expr postfix_expr array_subscript array_subscript_list unary_expr exponent_expr mult_expr add_expr comparison_expr optional_expr optional_length array_literal array_elements array_element
+%type <expr> expr return_val arg_list arg name assignment_expr atomic_expr lvalue logical_or_expr logical_and_expr deref_expr postfix_expr array_subscript array_subscript_list unary_expr exponent_expr mult_expr add_expr comparison_expr optional_expr optional_length array_literal array_elements array_element optional_args
 %type <type> atomic_type function_return_type function_header parameter_type array_type array_parameter_type array_type_dimension array_type_dimensions array_parameter_type_dimension array_parameter_type_dimensions
 %type <param_list> function_parameters parameter_list parameter
 %type <stmt> function_body stmts stmt closed_stmt open_stmt stmt_block
@@ -91,7 +91,7 @@ struct decl *parser_result = NULL;
 
 %%
 
-program: %empty    { parser_result = NULL; }
+program: %empty    { ast_root = NULL; }
        | decl_list { 
                        struct decl *prev = NULL;
                        struct decl *curr = $1;
@@ -101,7 +101,7 @@ program: %empty    { parser_result = NULL; }
                            prev = curr;
                            curr = tmp; 
                        }
-                       parser_result = prev;
+                       ast_root = prev;
                    }
        ;
 
@@ -177,7 +177,7 @@ function_return_type: atomic_type { $$ = $1; }
 
 function_body: LBRACE RBRACE       { $$ = stmt_create(STMT_BLOCK, NULL, NULL, NULL, NULL, NULL, NULL, NULL); }
              | stmt_block          { $$ = $1; }
-             ;
+              ;
 
 stmt_block: LBRACE stmts RBRACE {
                                     struct stmt *prev = NULL;
@@ -232,6 +232,20 @@ closed_stmt: variable_decl                                                      
            | FOR LPAREN optional_expr SEMICOLON optional_expr SEMICOLON optional_expr RPAREN closed_stmt { $$ = stmt_create(STMT_FOR, NULL, $3, $5, $7, $9, NULL, NULL); }
            | WHILE LPAREN expr RPAREN closed_stmt                                                        { $$ = stmt_create(STMT_WHILE, NULL, NULL, $3, NULL, $5, NULL, NULL); }
            ;
+
+optional_args: %empty   { $$ = NULL; }
+             | arg_list { 
+                            struct expr *prev = NULL;
+                            struct expr *curr = $1;
+                            while (curr) {
+                                struct expr *tmp = curr->right;
+                                curr->right = prev;
+                                prev = curr;
+                                curr = tmp;
+                            }
+                            $$ = prev;
+                        }
+             ;
 
 arg_list: arg                { $$ = $1; }
         | arg_list COMMA arg { $3->right = $1; $$ = $3; }
@@ -341,30 +355,20 @@ postfix_expr: deref_expr INCREMENT { $$ = expr_create(EXPR_INCREMENT, $1, NULL);
             | deref_expr           { $$ = $1; }
             ;
 
-deref_expr: name LPAREN arg_list RPAREN { 
-                                      struct expr *prev = NULL;
-                                      struct expr *curr = $3;
-                                      while (curr) {
-                                          struct expr *tmp = curr->right;
-                                          curr->right = prev;
-                                          prev = curr;
-                                          curr = tmp;
-                                      }
-                                      $$ = expr_create(EXPR_CALL, $1, prev);
-                                  }
-          | name array_subscript_list {
-                                          struct expr *prev = NULL;
-                                          struct expr *curr = $2;
-                                          while (curr) {
-                                              struct expr *tmp = curr->right;
-                                              curr->right = prev;
-                                              prev = curr;
-                                              curr = tmp;
-                                          }
-                                          $$ = expr_create(EXPR_ARRAY_SUBSCRIPT, $1, prev);
-                                        }
-          | LPAREN expr RPAREN          { $$ = $2; }
-          | atomic_expr                 { $$ = $1; }
+deref_expr: name LPAREN optional_args RPAREN { $$ = expr_create(EXPR_CALL, $1, $3); }
+          | name array_subscript_list        {
+                                                 struct expr *prev = NULL;
+                                                 struct expr *curr = $2;
+                                                 while (curr) {
+                                                     struct expr *tmp = curr->right;
+                                                     curr->right = prev;
+                                                     prev = curr;
+                                                     curr = tmp;
+                                                 }
+                                                 $$ = expr_create(EXPR_ARRAY_SUBSCRIPT, $1, prev);
+                                             }
+          | LPAREN expr RPAREN               { $$ = $2; }
+          | atomic_expr                      { $$ = $1; }
           ;
 
 array_subscript: LBRACK expr RBRACK { $$ = expr_create(EXPR_SUBSCRIPT, $2, NULL); }

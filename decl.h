@@ -14,4 +14,6 @@ struct decl * decl_create(char *name, struct type *type, struct expr *value, str
 
 void decl_print(struct decl *decl, int indent);
 
+void decl_resolve(struct decl *decl);
+
 #endif

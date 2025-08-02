@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "expr.h"
+#include "symbol.h"
+#include "scope.h"
 
 struct expr * expr_create(expr_t kind, struct expr *left, struct expr *right) {
     struct expr *expr = malloc(sizeof(struct expr));
@@ -27,7 +29,7 @@ void expr_print(struct expr *expr) {
             printf("%s", expr->name);
             break;
         case EXPR_INTEGER_LITERAL:
-            printf("%d", expr->literal_value);
+            printf("%i", expr->literal_value);
             break;
         case EXPR_STRING_LITERAL:
             printf("\"");
@@ -263,4 +265,25 @@ struct expr * expr_create_name(const char *name) {
     struct expr *expr = expr_create(EXPR_NAME, NULL, NULL);
     expr->name = name;
     return expr;
+}
+
+void expr_resolve(struct expr *expr) {
+    if (!expr) {
+        return;
+    }
+
+    if (expr->kind == EXPR_NAME) {
+        expr->symbol = scope_lookup(expr->name);
+        if (!expr->symbol) {
+            fprintf(stderr, "resolve error: %s is undefined\n", expr->name);
+            resolve_error = 1;
+        } else {
+            printf("%s resolves to ", expr->name);
+            symbol_print(expr->symbol);
+            printf("\n");
+        }
+    } else {
+        expr_resolve(expr->left);
+        expr_resolve(expr->right);
+    }
 }

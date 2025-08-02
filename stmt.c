@@ -4,6 +4,7 @@
 #include "decl.h"
 #include "expr.h"
 #include "print.h"
+#include "scope.h"
 
 
 struct stmt * stmt_create(stmt_t kind, struct decl *decl, struct expr *init_expr, struct expr *expr, struct expr *next_expr, struct stmt *body, struct stmt *else_body, struct stmt *next) {
@@ -118,4 +119,47 @@ void stmt_print(struct stmt *stmt, int indent) {
 
     stmt_print(stmt->next, indent);
 
+}
+
+void stmt_resolve(struct stmt *stmt) {
+    if (!stmt) {
+        return;
+    }
+
+    switch (stmt->kind) {
+        case STMT_DECL:
+            decl_resolve(stmt->decl);
+            break;
+        case STMT_EXPR:
+            expr_resolve(stmt->expr);
+            break;
+        case STMT_RETURN:
+            expr_resolve(stmt->expr);
+            break;
+        case STMT_PRINT:
+            expr_resolve(stmt->expr);
+            break;
+        case STMT_BLOCK:
+            scope_enter();
+            stmt_resolve(stmt->body);
+            scope_exit();
+            break;
+        case STMT_WHILE:
+            expr_resolve(stmt->expr);
+            stmt_resolve(stmt->body);
+            break;
+        case STMT_IF_ELSE:
+            expr_resolve(stmt->expr);
+            stmt_resolve(stmt->body);
+            stmt_resolve(stmt->else_body);
+            break;
+        case STMT_FOR:
+            expr_resolve(stmt->init_expr);
+            expr_resolve(stmt->expr);
+            expr_resolve(stmt->next_expr);
+            stmt_resolve(stmt->body);
+            break;
+    }
+
+    stmt_resolve(stmt->next);
 }
